@@ -1,8 +1,9 @@
 import itertools
 import random
 import numpy as np
+from nptyping import NDArray, Int, Shape
 
-TILES = np.ndarray[(4, 4), int]
+TILES = NDArray[Shape["4, 4"], Int]
 
 class Board2048:
     def __init__(self, starting_position: TILES=None):
