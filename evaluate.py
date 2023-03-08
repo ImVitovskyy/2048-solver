@@ -5,7 +5,8 @@ import math
 import numpy as np
 from board import Board2048
 
-
+# TODO: The Heuristic class should have a score() method that takes a Board2048 object as input and returns a score for that state
+# This means that the board should not be passed to the init method and the calculation should not be made in the class initialization
 class Heuristic:
     """Evaluate the board giving it a score that represents its desirability.
     The greatest the score the better the board is.

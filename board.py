@@ -14,11 +14,11 @@ class Board2048:
             self.tiles: TILES = starting_position
 
     def get_empty_spaces(self) -> list[tuple[int, int]]:
+        """Return a list of all empty coordinates of the board"""
         return [
             (row, col)
             for row, col in itertools.product(range(4), range(4))
-            if self[row, col] == 0
-        ]
+            if self[row, col] == 0]
 
     def add_new_tile(self) -> bool:
         """Add a new tile with a value of either 2 (90% probability) or 4 (10% probability) to a randomly-chosen empty space on the board"""
@@ -40,6 +40,7 @@ class Board2048:
         self.tiles[row][col] = value
 
     def __str__(self):
+        """String representation of the board formatted to look good on the terminal"""
         board_str = '+-----+-----+-----+-----+\n'
         for i in range(4):
             board_str += '|'
@@ -47,10 +48,5 @@ class Board2048:
                 board_str += f'{self.tiles[i][j]:^5}|'
             board_str += '\n'
             board_str += '+-----+-----+-----+-----+\n'
-        return board_str    moves = []
-    for direction in ['up', 'down', 'left', 'right']:
-        new_board = self.get_slid_board(direction)
-        if np.array_equal(new_board, self.tiles):
-            moves.append(direction)
-    return moves
-"""
+        return board_str
+    
