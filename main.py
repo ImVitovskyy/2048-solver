@@ -1,5 +1,5 @@
 from board import Board2048
-from evaluate import HEF2048Basic
+from evaluate import EF2048Basic
 from states import *  # File with numpy arrays representing a board state. Used for testing
 
 

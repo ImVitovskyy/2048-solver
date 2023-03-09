@@ -6,13 +6,13 @@ import numpy as np
 from board import TILES
 
 
-class HEF2048:  # "HEF2048" stands for "Heuristic Evaluation Function for 2048"
+class EF2048:  # "EF2048" stands for "Evaluation Function for 2048"
     def calculate(self, tiles: TILES):
         """Return the score of the given tiles"""
         pass
 
 
-class HEF2048Basic(HEF2048):
+class EF2048Basic(EF2048):
     """Evaluate the tiles giving it a score that represents its desirability.
     The greatest the score the better the tiles are.
 
