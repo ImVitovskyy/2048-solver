@@ -1,20 +1,26 @@
 import itertools
 import random
 import numpy as np
-from nptyping import NDArray, Int, Shape
+from enum import Enum
 
-TILES = NDArray[Shape["4, 4"], Int]
+TILES = np.ndarray[(4, 4), int]
+
+
+class Move(Enum):
+    LEFT = 0
+    UP = 1
+    RIGHT = 2
+    DOWN = 3
 
 
 class Board2048:
-    MOVES = ['up', 'down', 'left', 'right']
-
     def __init__(self, starting_position: TILES = None):
         if starting_position is None:  # new board
             self.tiles: TILES = np.zeros((4, 4), dtype=int)
             self.add_new_random_tile()
             self.add_new_random_tile()
-        else:  # pre-made board (generally used for testing)
+
+        else:  # pre-made board
             self.tiles: TILES = starting_position
 
     def add_new_random_tile(self) -> bool:
@@ -29,26 +35,25 @@ class Board2048:
 
     def empty_spaces_coords(self) -> list[tuple[int, int]]:
         """Return a list of all empty coordinates of the board"""
-        return [
-            (row, col)
-            for row, col in itertools.product(range(4), range(4))
-            if self[row, col] == 0]
+        return [(row, col)
+                for row, col in itertools.product(range(4), range(4))
+                if self[row, col] == 0]
 
-    def get_slid_tiles(self, direction: str) -> TILES:
+    def get_slid_tiles(self, move: Move) -> TILES:
         """Return a copy of the board slid in the specified direction"""
-        board_copy = np.copy(
-            self.tiles)  # create a copy to not modify the original
+        # create a copy to not modify the original
+        board_copy = np.copy(self.tiles)
 
         # Rotate board so that direction corresponds to moving left as each row can be treated independently
-        match direction:
-            case 'up':
-                board = np.rot90(board_copy, 1)
-            case 'down':
-                board = np.rot90(board_copy, 3)
-            case 'left':
+        match move:
+            case move.LEFT:
                 board = board_copy
-            case 'right':
-                board = np.rot90(board_copy, 2)
+            case move.UP:
+                board = np.rot90(board_copy, move.UP.value)
+            case move.RIGHT:
+                board = np.rot90(board_copy, move.RIGHT.value)
+            case move.DOWN:
+                board = np.rot90(board_copy, move.DOWN.value)
 
         # Slide tiles
         for i in range(4):
@@ -66,28 +71,30 @@ class Board2048:
             board[i] = row
 
         # Rotate board back to its original orientation
-        match direction:
-            case 'up':
-                board = np.rot90(board, 3)
-            case 'down':
-                board = np.rot90(board, 1)
-            case 'left':
-                board = board
-            case 'right':
-                board = np.rot90(board, 2)
+        match move:
+            case move.LEFT:
+                board = board_copy
+            case move.UP:
+                board = np.rot90(board_copy, 4 - move.UP.value)
+            case move.RIGHT:
+                board = np.rot90(board_copy, 4 - move.RIGHT.value)
+            case move.DOWN:
+                board = np.rot90(board_copy, 4 - move.DOWN.value)
 
         return board
 
-    def available_moves(self) -> list:
+    def available_moves(self) -> list[Move]:
+        """Return a list of available moves that can be made on the board"""
         available = []
-        for move in self.MOVES:
+        for move in Move:
             slid_tiles = self.get_slid_tiles(move)
             if not np.array_equal(slid_tiles, self.tiles):
                 available.append(move)
-                
+
         return available
 
     def is_over(self) -> bool:
+        """Return True if there is no available moves in the board"""
         return not self.available_moves()
 
     def __getitem__(self, pos):
