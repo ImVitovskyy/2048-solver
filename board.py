@@ -67,19 +67,19 @@ class Board2048:
                     row[j+1] = 0
             # Move any remaining tiles to the left
             row = row[row != 0]
-            row = np.pad(row, (0, board.shape[1]-len(row)), 'constant')
+            row = np.pad(row, (0, 4-len(row)), 'constant')
             board[i] = row
 
         # Rotate board back to its original orientation
         match move:
             case move.LEFT:
-                board = board_copy
+                board = board
             case move.UP:
-                board = np.rot90(board_copy, 4 - move.UP.value)
+                board = np.rot90(board, 4 - move.UP.value)
             case move.RIGHT:
-                board = np.rot90(board_copy, 4 - move.RIGHT.value)
+                board = np.rot90(board, 4 - move.RIGHT.value)
             case move.DOWN:
-                board = np.rot90(board_copy, 4 - move.DOWN.value)
+                board = np.rot90(board, 4 - move.DOWN.value)
 
         return board
 
@@ -93,7 +93,7 @@ class Board2048:
 
         return available
 
-    def is_over(self) -> bool:
+    def is_terminal(self) -> bool:
         """Return True if there is no available moves in the board"""
         return not self.available_moves()
 

@@ -5,11 +5,28 @@ import math
 import numpy as np
 from board import TILES
 
+MAX_SCORE = 262142
+MAX_TILE = 131072
+MAX_EMPTY_SPACES = 16
+MAX_SMOOTHNESS = -234  # smaller values are better
+
+
+def normalize_0to1(val, max, min):
+    return (val - min) / (max - min)
+
 
 class EF2048:  # "EF2048" stands for "Evaluation Function for 2048"
-    def calculate(self, tiles: TILES):
+    def evaluate(self, tiles: TILES) -> float:
         """Return the score of the given tiles"""
         pass
+
+
+class EF2048Simple(EF2048):
+    def __init__(self) -> None:
+        pass
+
+    def evaluate(self, tiles: TILES) -> float:
+        return np.sum(tiles)
 
 
 class EF2048Basic(EF2048):
@@ -17,8 +34,8 @@ class EF2048Basic(EF2048):
     The greatest the score the better the tiles are.
 
     It is based on four factors:
+        score: The sum of all tiles values.
         empty_spaces: Amount of empty cells.
-        tiles_score: The sum of all tiles values.
         tiles_position: Evaluate the position of the tiles using a location score map. The point is to reward tiles that are on the edge and corner using their value as a multiplier.
         smoothness: Reward adjacent tiles having similar values.
 
@@ -26,25 +43,26 @@ class EF2048Basic(EF2048):
         factor1 * weight1 + factor2 * weight2 + ... + factorN * weightN = total_score
     """
 
-    def __init__(self,
-                 empty_spaces_weight: int = 1,
-                 tiles_score_weight: int = 1,
-                 tiles_position_weight: int = 1,
-                 smoothness_weight: int = 1,
-                 location_score_map: TILES = np.array([[3, 2, 2, 3],
-                                                       [2, 1, 1, 2],
-                                                       [2, 1, 1, 2],
-                                                       [3, 2, 2, 3]])):
+    def __init__(self, weights: dict = {'score': 1,
+                                        'empty_tiles': 2.7,
+                                        'tiles_position': 1,
+                                        'smoothness': 0.1},
+                 location_score_map: TILES = np.array([[6, 3, 3, 6],
+                                                       [3, 1, 1, 3],
+                                                       [3, 1, 1, 3],
+                                                       [6, 3, 3, 6]])):
+
+        self.weights = weights
         self.location_score_map = location_score_map
 
-        self.empty_spaces_weight = empty_spaces_weight
-        self.tiles_score_weight = tiles_score_weight
-        self.tiles_position_weight = tiles_position_weight
-        self.smoothness_weight = smoothness_weight
+    def evaluate(self, tiles: TILES):
+        factors = self.calculate_factors(tiles)
 
-    def calculate(self, tiles: TILES):
+        return self.calculate_total_score()  # todo: finish this
+
+    def calculate_factors(self, tiles: TILES) -> list:
+        score = 0
         empty_spaces = 0
-        tiles_score = 0
         tiles_position = 0
         smoothness = 0
 
@@ -56,7 +74,7 @@ class EF2048Basic(EF2048):
                 empty_spaces += 1
                 continue
 
-            tiles_score += tile
+            score += tile
 
             tiles_position += tile * self.location_score_map[i][j]
 
@@ -77,10 +95,10 @@ class EF2048Basic(EF2048):
                     smoothness -= abs(math.log2(tile) -
                                       math.log2(neighbor_value))
 
-        return self._calculate_total_score(empty_spaces, tiles_score, tiles_position, smoothness)
+        return [score, empty_spaces, tiles_position, smoothness]
 
-    def _calculate_total_score(self, empty_spaces, tiles_score, tiles_position, smoothness):
-        return empty_spaces * self.empty_spaces_weight + \
-            tiles_score * self.tiles_score_weight + \
-            tiles_position * self.tiles_position_weight + \
-            smoothness * self.smoothness_weight
+    def calculate_total_score(self, empty_spaces, tiles_score, tiles_position, smoothness):
+        return empty_spaces * self.weights['empty_tiles'] + \
+            tiles_score * self.weights['score'] + \
+            tiles_position * self.weights['tiles_position'] + \
+            smoothness * self.weights['smoothness']

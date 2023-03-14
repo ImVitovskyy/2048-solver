@@ -1,77 +1,184 @@
 import math
 import random
-from board import Board2048
+from board import Board2048, Move, TILES
+from evaluate import EF2048
 
 
 class MCTSNode:
-    def __init__(self, board, parent=None):
+    def __init__(self, board, parent=None) -> None:
         self.board: Board2048 = board
         self.parent: MCTSNode = parent
-        self.children: list[tuple[MCTSNode, str]] = []
+        # the child and the mode that made on the parent lead to this child
+        self.children: list[tuple[MCTSNode, Move]] = []
         self.visits: int = 0
         self.score: float = 0.0
 
 
 class MCTS:
-    def __init__(self, max_iterations, heuristic):
-        self.max_iterations = max_iterations
-        self.heuristic = heuristic
+    # https://www.youtube.com/watch?v=UXW2yZndl7U
+    def __init__(self, max_iterations: int, max_simulation_depth: int,  heuristic: EF2048) -> None:
+        self.max_iterations: int = max_iterations
+        self.max_simulation_depth: int = max_simulation_depth
+        self.heuristic: EF2048 = heuristic
 
-    def search(self, initial_state):
-        root = MCTSNode(initial_state)
+    def search(self, root_board: Board2048) -> Move:
+        """Return the best move for the given board"""
+        root = MCTSNode(root_board)
         for _ in range(self.max_iterations):
             node = root
 
-            # Selection
-            # select a child node until there is no more children
+            # If the node has a child it is not a leaf node,
+            # so we select the nove child until it is a leaf node.
+            # When out of this loop, the current node is a leaf node
             while node.children:
-                node = self.select_child(node)
+                node = self.selection(node)
 
-            # Expansion
-            # create and get a child node with a untried move
-            if untried_moves := self.get_untried_moves(node):
-                node = self.expand_node(node, random.choice(untried_moves))
+            # If the node has been visited before, expand it
+            if node.visits != 0:
+                if self.expansion(node):
+                    # if the node was expanded (children was created), select a child
+                    node = self.selection(node)
+                # if the node was not expanded, just proced to the score and backpropagation
 
-            # Simulation
-            while not self.get_untried_moves(node) and node.children:
-                node = self.select_child(node)
-            score = self.evaluate(node)
+            # If the node has not been visited before, simulate it (rollout)
+            if node.visits == 0:
+                node = self.simulation(node)
 
-            # Backpropagation
-            while node:
-                node.visits += 1
-                node.score += score
-                node = node.parent
+            score = self.evaluate(node.board.tiles)
 
-        # Choose the move with the highest average score
+            # After expansion or simulation, do backpropagation
+            self.backpropagation(node, score)
+
+        # After all iterations, choose the move with the highest average score (get_best_child)
         best_child = self.get_best_child(root)
-        return best_child[1]
+        return best_child[1]  # return the move that leed to the best child
 
-    def select_child(self, node: MCTSNode) -> MCTSNode:
-        # select the child with the highest UCB1 score
+    def selection(self, node: MCTSNode) -> MCTSNode:
+        """Return the child of the given node that has the highest ucb1 score"""
         return max(node.children, key=lambda x: self.ucb1_score(x[0]))[0]
 
+    def expansion(self, node: MCTSNode) -> bool:
+        """Create all possible childs for the node.
+        If the node is not a leaf node, its possible that this function will create duplicate childs because of existent childs.
+        Return True if at least one child was created, otherwise, False"""
+        if node.board.is_terminal():
+            return False
+
+        for move in node.board.available_moves():
+            # create a new board from the move and add the random tile
+            new_board = Board2048(node.board.get_slid_tiles(move))
+            new_board.add_new_random_tile()
+
+            # create a child with a parent and add the child to the parent
+            child = MCTSNode(new_board, node)
+            node.children.append((child, move))
+        return True
+
+    def simulation(self, node: MCTSNode) -> MCTSNode:  # rollout
+        """Returns the deepest child in a random simulation"""
+        # The deepest child is a terminal child or a child of max deepth
+        for _ in range(self.max_simulation_depth):
+            if node.board.is_terminal():
+                break
+
+            # create a new board from a random move and add the random tile
+            move = random.choice(node.board.available_moves())
+            new_board = Board2048(node.board.get_slid_tiles(move))
+            new_board.add_new_random_tile()
+
+            # create a child with a parent
+            child = MCTSNode(new_board, node)
+
+            # Do not add the child to the parent.
+            # Children should not be added during simulation, only during expansion
+
+            node = child
+        return node
+
+    def backpropagation(self, node: MCTSNode, score: float) -> None:
+        """Backpropagate throught all parent nodes modifing its score and visits until gets to the root node.
+        Returns the root node."""
+        while node:
+            node.visits += 1
+            node.score += score
+            # When in the root node the parent is None, so we get out of the loop
+            node = node.parent
+        return node
+
     def ucb1_score(self, node: MCTSNode) -> float:
-        # compute the UCB1 score for a node
-        return node.score / node.visits + 2 * math.sqrt(2 * math.log(node.parent.visits) / node.visits)
+        """Return the UCB1 score for a node"""
+        # If the node has zero visits, the ucb1 score will have a ZeroDivisionError, what is essentially infinity.
+        # The ucb1 score must prioritize nodes with no visits
+        try:
+            return node.score / node.visits + math.sqrt(2 * math.log(node.parent.visits) / node.visits)
+        except ZeroDivisionError:
+            return math.inf
 
-    def expand_node(self, node: MCTSNode, move: str) -> MCTSNode:
-        # expand a node with a new child for each move
-        new_board = Board2048(node.board.get_slid_tiles(move))
-        new_board.add_new_random_tile()
-        child = MCTSNode(new_board, node)
-        node.children.append((child, move))
-        return child
+    def evaluate(self, tiles: TILES) -> float:
+        """Return the heuristic evaluation of the tiles"""
+        return self.heuristic.evaluate(tiles)
 
-    def get_untried_moves(self, node: MCTSNode):
-        # return the untried moves from a node's state
-        tried = list(node.children)
-        return [move for move in node.board.MOVES if move not in tried]
+    def get_best_child(self, node: MCTSNode) -> tuple[MCTSNode, Move]:
+        """Return the child with the greatest avarage score"""
+        return max(node.children, key=lambda x: x[0].score / x[0].visits)
 
-    def evaluate(self, node: MCTSNode):
-        # evaluate the value of a game state
-        return self.heuristic.calculate(node.board.tiles)
 
-    def get_best_child(self, node: MCTSNode):
-        # return the child with the highest average score
-        return max(node.children, key=lambda c: c[0].score / c[0].visits)
+# # Expectiminimax high-level overview draft
+# class Node:
+#     def __init__(self, state, player, depth, prob=None):
+#         self.state = state
+#         self.player = player
+#         self.depth = depth
+#         self.prob = prob
+#         self.value = None
+
+
+# class Expectiminimax:
+#     def __init__(self, max_depth, eval_terminal, eval_non_terminal):
+#         self.max_depth = max_depth
+#         self.eval_terminal = eval_terminal
+#         self.eval_non_terminal = eval_non_terminal
+
+#     def expectiminimax(self, node):
+#         if node.depth == 0 or self.is_terminal_state(node):
+#             node.value = self.eval_terminal(node.state, node.player)
+#             return node.value
+
+#         if node.player == MAX_PLAYER:
+#             best_value = float('-inf')
+#             for move in self.get_possible_moves(node.state):
+#                 next_state = self.apply_move(node.state, move)
+#                 next_node = Node(next_state, MIN_PLAYER, node.depth - 1)
+#                 value = self.expectiminimax(next_node)
+#                 best_value = max(best_value, value)
+#             node.value = best_value
+#         else:
+#             expected_value = 0
+#             num_possible_moves = len(self.get_possible_moves(node.state))
+#             for move in self.get_possible_moves(node.state):
+#                 next_state = self.apply_move(node.state, move)
+#                 next_prob = self.get_next_tile_probabilities(next_state)
+#                 next_node = Node(next_state, MAX_PLAYER,
+#                                  node.depth - 1, next_prob)
+#                 probability = next_prob if node.prob is None else node.prob * next_prob
+#                 value = self.expectiminimax(next_node)
+#                 expected_value += probability * value
+#             node.value = expected_value
+
+#         return node.value
+
+#     def get_possible_moves(self, state):
+#         # Return all possible moves from the current state
+#         pass
+
+#     def apply_move(self, state, move):
+#         # Apply a move to the current state and return the resulting state
+#         pass
+
+#     def is_terminal_state(self, node):
+#         # Check if the current state is a terminal state
+#         pass
+
+#     def get_next_tile_probabilities(self, state):
+#         # Return the probabilities of each possible tile that can be spawned in the next turn
+#         pass
