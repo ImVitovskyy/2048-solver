@@ -3,6 +3,7 @@ import random
 from board import Board2048, Move, TILES
 from evaluate import EF2048
 
+# TODO: optimize the code
 
 class MCTSNode:
     def __init__(self, board, parent=None) -> None:
@@ -22,13 +23,14 @@ class MCTS:
         self.heuristic: EF2048 = heuristic
 
     def search(self, root_board: Board2048) -> Move:
+        # sourcery skip: merge-nested-ifs
         """Return the best move for the given board"""
         root = MCTSNode(root_board)
         for _ in range(self.max_iterations):
             node = root
 
             # If the node has a child it is not a leaf node,
-            # so we select the nove child until it is a leaf node.
+            # so we select the node child until it is a leaf node.
             # When out of this loop, the current node is a leaf node
             while node.children:
                 node = self.selection(node)
@@ -38,7 +40,7 @@ class MCTS:
                 if self.expansion(node):
                     # if the node was expanded (children was created), select a child
                     node = self.selection(node)
-                # if the node was not expanded, just proced to the score and backpropagation
+                # if the node was not expanded, just proceed to the score and backpropagation
 
             # If the node has not been visited before, simulate it (rollout)
             if node.visits == 0:
@@ -51,15 +53,15 @@ class MCTS:
 
         # After all iterations, choose the move with the highest average score (get_best_child)
         best_child = self.get_best_child(root)
-        return best_child[1]  # return the move that leed to the best child
+        return best_child[1]  # return the move that leeds to the best child
 
     def selection(self, node: MCTSNode) -> MCTSNode:
         """Return the child of the given node that has the highest ucb1 score"""
         return max(node.children, key=lambda x: self.ucb1_score(x[0]))[0]
 
     def expansion(self, node: MCTSNode) -> bool:
-        """Create all possible childs for the node.
-        If the node is not a leaf node, its possible that this function will create duplicate childs because of existent childs.
+        """Create all possible children for the node.
+        If the node already has children, its possible that this function will create duplicate children because of existent children.
         Return True if at least one child was created, otherwise, False"""
         if node.board.is_terminal():
             return False
@@ -76,7 +78,7 @@ class MCTS:
 
     def simulation(self, node: MCTSNode) -> MCTSNode:  # rollout
         """Returns the deepest child in a random simulation"""
-        # The deepest child is a terminal child or a child of max deepth
+        # The deepest child is a terminal child or a child of max depth
         for _ in range(self.max_simulation_depth):
             if node.board.is_terminal():
                 break
@@ -96,7 +98,7 @@ class MCTS:
         return node
 
     def backpropagation(self, node: MCTSNode, score: float) -> None:
-        """Backpropagate throught all parent nodes modifing its score and visits until gets to the root node.
+        """Backpropagate through all parent nodes modifying its score and visits until gets to the root node.
         Returns the root node."""
         while node:
             node.visits += 1
@@ -119,7 +121,7 @@ class MCTS:
         return self.heuristic.evaluate(tiles)
 
     def get_best_child(self, node: MCTSNode) -> tuple[MCTSNode, Move]:
-        """Return the child with the greatest avarage score"""
+        """Return the child with the greatest average score"""
         return max(node.children, key=lambda x: x[0].score / x[0].visits)
 
 
