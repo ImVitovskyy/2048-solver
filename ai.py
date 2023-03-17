@@ -7,7 +7,6 @@ from visualize_tree import build_tree
 
 
 # TODO: I dont this that the MCTS is working properly, but i don't see anything wrong; the code just don't give expected results. (Or maybe the algorithm is just bad for this problem)
-
 class MCTSNode:
     def __init__(self, board, parent=None) -> None:
         self.board: Board2048 = board
@@ -132,8 +131,8 @@ class MCTS:
         """Return the child with the greatest average score"""
         return max(node.children, key=lambda x: x[0].score / x[0].visits)
 
-
-# # Expectiminimax high-level overview draft
+# TODO: make the expectimax class
+# # Expectimax high-level overview draft
 # class Node:
 #     def __init__(self, state, player, depth, prob=None):
 #         self.state = state

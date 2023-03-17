@@ -1,4 +1,4 @@
-from treelib import Tree, Node
+from treelib import Tree
 import numpy as np
 
 def build_tree(root_node):

@@ -11,12 +11,13 @@ from board import TILES
  [512, 256, 128, 64],
  [32, 16, 8, 4]]
 
+# TODO: move this constants
 # For normalizing values
 MAX_SCORE = 262142
 MIN_SCORE = 4
 MAX_EMPTY_TILES = 15
 MIN_EMPTY_TILES = 0 + 1e-5  # Very small clipping
-MAX_TILES_POSITION = 3145704 # TODO: tiles position max and min may be wrong
+MAX_TILES_POSITION = 3145704  # TODO: tiles position max and min may be wrong
 MIN_TILES_POSITION = 2
 MAX_SMOOTHNESS = 234
 MIN_SMOOTHNESS = 0 + 1e-5  # Very small clipping
@@ -34,15 +35,15 @@ class EF2048:  # "EF2048" stands for "Evaluation Function for 2048"
         pass
 
 
-class EF2048Simple(EF2048):
+class EF2048Basic(EF2048):
     def __init__(self) -> None:
         pass
 
     def evaluate(self, tiles: TILES) -> float:
-        return np.sum(tiles)
+        return float((np.sum(tiles == 0) + np.sum(tiles) + np.max(tiles)) / 3)
 
 
-class EF2048Basic(EF2048):
+class EF2048Complex(EF2048):
     def __init__(self, weights: dict = None):
 
         # Default weights
@@ -56,23 +57,24 @@ class EF2048Basic(EF2048):
         self.weights = weights
 
         self.location_map: TILES = np.array([[1, 2, 3, 4],
-                                             [8, 7, 6, 5], 
+                                             [8, 7, 6, 5],
                                              [9, 10, 11, 12],
                                              [16, 15, 14, 13]])
 
     def evaluate(self, tiles: TILES) -> float:
         """Return the total score of the given tiles"""
-        score, empty_tiles, tiles_position, smoothness = self.calculate_factors(tiles)
+        score, empty_tiles, tiles_position, smoothness = self.calculate_factors(
+            tiles)
 
         # Normalize score
         score = normalize_0to1(score,
-                               MAX_SCORE, MIN_SCORE)
+                                 MAX_SCORE, MIN_SCORE)
         empty_tiles = normalize_0to1(empty_tiles,
-                                     MAX_EMPTY_TILES, MIN_EMPTY_TILES)
+                                       MAX_EMPTY_TILES, MIN_EMPTY_TILES)
         tiles_position = normalize_0to1(tiles_position,
-                                        MAX_TILES_POSITION, MIN_TILES_POSITION)
+                                          MAX_TILES_POSITION, MIN_TILES_POSITION)
         smoothness = normalize_0to1(smoothness,
-                                    MAX_SMOOTHNESS, MIN_SMOOTHNESS)
+                                      MAX_SMOOTHNESS, MIN_SMOOTHNESS)
 
         return self.calculate_total(score, empty_tiles, tiles_position, smoothness)
 
@@ -121,4 +123,5 @@ class EF2048Basic(EF2048):
                 empty_tiles * self.weights['empty_tiles'] +
                 tiles_position * self.weights['tiles_position'] -
                 smoothness * self.weights['smoothness']) / \
-                (self.weights['score'] + self.weights['empty_tiles'] + self.weights['tiles_position'] + self.weights['smoothness'])
+            (self.weights['score'] + self.weights['empty_tiles'] +
+             self.weights['tiles_position'] + self.weights['smoothness'])
