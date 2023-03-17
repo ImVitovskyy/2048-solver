@@ -1,26 +1,32 @@
 import math
 import random
+import uuid
 from board import Board2048, Move, TILES
 from evaluate import EF2048
+from visualize_tree import build_tree
 
-# TODO: optimize the code
+
+# TODO: I dont this that the MCTS is working properly, but i don't see anything wrong; the code just don't give expected results. (Or maybe the algorithm is just bad for this problem)
 
 class MCTSNode:
     def __init__(self, board, parent=None) -> None:
         self.board: Board2048 = board
         self.parent: MCTSNode = parent
-        # the child and the mode that made on the parent lead to this child
+        # The child and the move that made on the parent lead to this child
         self.children: list[tuple[MCTSNode, Move]] = []
         self.visits: int = 0
         self.score: float = 0.0
+        # Identifier used for tree visualizer
+        self.identifier: str = str(uuid.uuid4())
 
 
 class MCTS:
     # https://www.youtube.com/watch?v=UXW2yZndl7U
-    def __init__(self, max_iterations: int, max_simulation_depth: int,  heuristic: EF2048) -> None:
+    def __init__(self, max_iterations: int, max_simulation_depth: int,  heuristic: EF2048, ubc1_score_c_value: int = 1) -> None:
         self.max_iterations: int = max_iterations
         self.max_simulation_depth: int = max_simulation_depth
         self.heuristic: EF2048 = heuristic
+        self.ubc1_score_c_value = ubc1_score_c_value
 
     def search(self, root_board: Board2048) -> Move:
         # sourcery skip: merge-nested-ifs
@@ -51,6 +57,8 @@ class MCTS:
             # After expansion or simulation, do backpropagation
             self.backpropagation(node, score)
 
+        # build_tree(root)
+        
         # After all iterations, choose the move with the highest average score (get_best_child)
         best_child = self.get_best_child(root)
         return best_child[1]  # return the move that leeds to the best child
@@ -112,7 +120,7 @@ class MCTS:
         # If the node has zero visits, the ucb1 score will have a ZeroDivisionError, what is essentially infinity.
         # The ucb1 score must prioritize nodes with no visits
         try:
-            return node.score / node.visits + math.sqrt(2 * math.log(node.parent.visits) / node.visits)
+            return (node.score / node.visits) + (self.ubc1_score_c_value * math.sqrt(2 * math.log(node.parent.visits) / node.visits))
         except ZeroDivisionError:
             return math.inf
 

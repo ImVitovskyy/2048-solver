@@ -2,6 +2,7 @@ import itertools
 import random
 import numpy as np
 from enum import Enum
+import re
 
 TILES = np.ndarray[(4, 4), int]
 
@@ -113,7 +114,8 @@ class Board2048:
         for i in range(4):
             board_str += '|'
             for j in range(4):
-                board_str += f'{self.tiles[i][j]:^5}|'.replace('0', ' ')
+                s = f'{self.tiles[i][j]:^5}|'
+                board_str += re.sub(r"(?<!\d)0(?!\d)", ' ', s)
             board_str += '\n'
             board_str += '+-----+-----+-----+-----+\n'
         return board_str
