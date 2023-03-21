@@ -1,3 +1,4 @@
+from copy import deepcopy
 import math
 import random
 import uuid
@@ -11,7 +12,7 @@ class MCTSNode:
     def __init__(self, board, parent=None) -> None:
         self.board: Board2048 = board
         self.parent: MCTSNode = parent
-        # The child and the move that made on the parent lead to this child
+        # The child and the move that when made on the parent lead to this child. it used to keep track of the moves
         self.children: list[tuple[MCTSNode, Move]] = []
         self.visits: int = 0
         self.score: float = 0.0
@@ -28,8 +29,15 @@ class MCTS:
         self.ubc1_score_c_value = ubc1_score_c_value
 
     def search(self, root_board: Board2048) -> Move:
-        # sourcery skip: merge-nested-ifs
         """Return the best move for the given board"""
+        root = self.MCTS(root_board)
+        best_child, move = self.get_best_child(root)
+        return move  # return the move that leeds to the best child
+
+    def MCTS(self, root_board: Board2048) -> MCTSNode:
+        # sourcery skip: merge-nested-ifs
+        """Runs a MCTS algorithm on a given board.
+        Returns a node objects that is the hole game tree generated"""
         root = MCTSNode(root_board)
         for _ in range(self.max_iterations):
             node = root
@@ -57,10 +65,9 @@ class MCTS:
             self.backpropagation(node, score)
 
         # build_tree(root)
-        
-        # After all iterations, choose the move with the highest average score (get_best_child)
-        best_child = self.get_best_child(root)
-        return best_child[1]  # return the move that leeds to the best child
+
+        # After all iterations, return the root with all children and information
+        return root
 
     def selection(self, node: MCTSNode) -> MCTSNode:
         """Return the child of the given node that has the highest ucb1 score"""
@@ -131,63 +138,76 @@ class MCTS:
         """Return the child with the greatest average score"""
         return max(node.children, key=lambda x: x[0].score / x[0].visits)
 
-# TODO: make the expectimax class
-# # Expectimax high-level overview draft
-# class Node:
-#     def __init__(self, state, player, depth, prob=None):
-#         self.state = state
-#         self.player = player
-#         self.depth = depth
-#         self.prob = prob
-#         self.value = None
 
 
-# class Expectiminimax:
-#     def __init__(self, max_depth, eval_terminal, eval_non_terminal):
-#         self.max_depth = max_depth
-#         self.eval_terminal = eval_terminal
-#         self.eval_non_terminal = eval_non_terminal
+class Expectimax:
+    def __init__(self, max_depth: int, heuristic: EF2048) -> None:
+        self.max_depth: int = max_depth
+        self.heuristic: EF2048 = heuristic
+    
+    def search(self, root_board: Board2048):
+        board = deepcopy(root_board)
+        best_score = -math.inf
+        best_move = Move.LEFT
+        for move in board.available_moves():
+            board.tiles = board.get_slid_tiles(move)
+            score = self.expectimax(board, False, -math.inf, math.inf, 0)
+            if score > best_score:
+                best_score = score
+                best_move = move
+        
+        return best_move
+    
+    def expectimax(self, board: Board2048, maximizing: bool, alfa: float, beta: float, depth: int):
+        if board.is_terminal() or depth >= self.max_depth:
+            return self.heuristic.evaluate(board.tiles)
+        
+        score = 0
+        
+        if maximizing:
+            score = -math.inf
+            for move in board.available_moves():
+                # Move the board
+                board.tiles = board.get_slid_tiles(move)
+                child_score = self.expectimax(board, not maximizing, alfa, beta, depth + 1)
+                if child_score > score:
+                    score = child_score
+                    
+                if child_score >= beta:
+                    break
+                
+                if child_score > alfa:
+                    alfa = child_score
+      
+        else:  # Is a chance node
+            score = 0
+            # for all possible new tiles values and all empty coords... 
+            for tile_number in [2, 4]:
+                empty_coords = board.empty_spaces_coords()
+                for empty_coord in empty_coords:
+                    # add the tile to the board
+                    board[empty_coord[0], empty_coord[1]] = tile_number
+                    score += self.expectimax(board, not maximizing, alfa, beta, depth + 1)
+                    # Calculate the average score
+                    score = score / (len(empty_coords) * 2)
+                    
+                    # remove the tile
+                    board[empty_coord[0], empty_coord[1]] = 0
+        
+        return score
+    
 
-#     def expectiminimax(self, node):
-#         if node.depth == 0 or self.is_terminal_state(node):
-#             node.value = self.eval_terminal(node.state, node.player)
-#             return node.value
-
-#         if node.player == MAX_PLAYER:
-#             best_value = float('-inf')
-#             for move in self.get_possible_moves(node.state):
-#                 next_state = self.apply_move(node.state, move)
-#                 next_node = Node(next_state, MIN_PLAYER, node.depth - 1)
-#                 value = self.expectiminimax(next_node)
-#                 best_value = max(best_value, value)
-#             node.value = best_value
-#         else:
-#             expected_value = 0
-#             num_possible_moves = len(self.get_possible_moves(node.state))
-#             for move in self.get_possible_moves(node.state):
-#                 next_state = self.apply_move(node.state, move)
-#                 next_prob = self.get_next_tile_probabilities(next_state)
-#                 next_node = Node(next_state, MAX_PLAYER,
-#                                  node.depth - 1, next_prob)
-#                 probability = next_prob if node.prob is None else node.prob * next_prob
-#                 value = self.expectiminimax(next_node)
-#                 expected_value += probability * value
-#             node.value = expected_value
-
-#         return node.value
-
-#     def get_possible_moves(self, state):
-#         # Return all possible moves from the current state
-#         pass
-
-#     def apply_move(self, state, move):
-#         # Apply a move to the current state and return the resulting state
-#         pass
-
-#     def is_terminal_state(self, node):
-#         # Check if the current state is a terminal state
-#         pass
-
-#     def get_next_tile_probabilities(self, state):
-#         # Return the probabilities of each possible tile that can be spawned in the next turn
-#         pass
+class Random:
+    def search(self, board: Board2048) -> Move:
+        return random.choice(board.available_moves())
+    
+class Simple:
+    def __init__(self, heuristic: EF2048) -> None:
+        self.heuristic = heuristic
+        
+    def search(self, board: Board2048) -> Move:
+        best = [
+            (self.heuristic.evaluate(board.get_slid_tiles(move)), move)
+            for move in board.available_moves()
+        ]
+        return max(best, key=lambda x: x[0])[1]
