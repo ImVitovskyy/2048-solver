@@ -139,12 +139,12 @@ class MCTS:
         return max(node.children, key=lambda x: x[0].score / x[0].visits)
 
 
-
+# TODO: check is the code is running as intended and optimize for performance
 class Expectimax:
     def __init__(self, max_depth: int, heuristic: EF2048) -> None:
         self.max_depth: int = max_depth
         self.heuristic: EF2048 = heuristic
-    
+
     def search(self, root_board: Board2048):
         board = deepcopy(root_board)
         best_score = -math.inf
@@ -155,56 +155,59 @@ class Expectimax:
             if score > best_score:
                 best_score = score
                 best_move = move
-        
+
         return best_move
-    
+
     def expectimax(self, board: Board2048, maximizing: bool, alfa: float, beta: float, depth: int):
         if board.is_terminal() or depth >= self.max_depth:
             return self.heuristic.evaluate(board.tiles)
-        
+
         score = 0
-        
+
         if maximizing:
             score = -math.inf
             for move in board.available_moves():
                 # Move the board
                 board.tiles = board.get_slid_tiles(move)
-                child_score = self.expectimax(board, not maximizing, alfa, beta, depth + 1)
+                child_score = self.expectimax(
+                    board, not maximizing, alfa, beta, depth + 1)
                 if child_score > score:
                     score = child_score
-                    
+
                 if child_score >= beta:
                     break
-                
+
                 if child_score > alfa:
                     alfa = child_score
-      
+
         else:  # Is a chance node
             score = 0
-            # for all possible new tiles values and all empty coords... 
+            # for all possible new tiles values and all empty coords...
             for tile_number in [2, 4]:
                 empty_coords = board.empty_spaces_coords()
                 for empty_coord in empty_coords:
                     # add the tile to the board
                     board[empty_coord[0], empty_coord[1]] = tile_number
-                    score += self.expectimax(board, not maximizing, alfa, beta, depth + 1)
+                    score += self.expectimax(board,
+                                             not maximizing, alfa, beta, depth + 1)
                     # Calculate the average score
                     score = score / (len(empty_coords) * 2)
-                    
+
                     # remove the tile
                     board[empty_coord[0], empty_coord[1]] = 0
-        
+
         return score
-    
+
 
 class Random:
     def search(self, board: Board2048) -> Move:
         return random.choice(board.available_moves())
-    
+
+
 class Simple:
     def __init__(self, heuristic: EF2048) -> None:
         self.heuristic = heuristic
-        
+
     def search(self, board: Board2048) -> Move:
         best = [
             (self.heuristic.evaluate(board.get_slid_tiles(move)), move)

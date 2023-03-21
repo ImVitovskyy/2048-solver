@@ -34,6 +34,7 @@ class EF2048:  # "EF2048" stands for "Evaluation Function for 2048"
         """Return the score of the given tiles"""
         pass
 
+# TODO: make good evaluating functions
 
 class EF2048Basic(EF2048):
     def __init__(self) -> None:
